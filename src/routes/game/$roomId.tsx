@@ -1,8 +1,10 @@
 import { trpcClient } from '@/integrations/tanstack-query/root-provider'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Copy, Check, Users, ArrowLeft } from 'lucide-react'
+import { Copy, Check, Users, ArrowLeft, Wifi, WifiOff } from 'lucide-react'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import type { ServerMessage } from '@/lib/websocket/messages'
 
 export const Route = createFileRoute('/game/$roomId')({
 	component: RouteComponent,
@@ -11,13 +13,38 @@ export const Route = createFileRoute('/game/$roomId')({
 function RouteComponent() {
 	const { roomId } = Route.useParams()
 	const [copied, setCopied] = useState(false)
+	const queryClient = useQueryClient()
+	const playerId = typeof window !== 'undefined' ? localStorage.getItem('playerId') : null
 
 	const roomQuery = useQuery({
 		queryKey: ['room', roomId],
 		queryFn: async () => {
 			return await trpcClient.game.status.query({ roomId })
 		},
-		refetchInterval: 2000, // Refresh every 2 seconds to see new players
+		// No more polling - WebSocket handles real-time updates
+	})
+
+	// WebSocket connection for real-time updates
+	const { connectionState } = useWebSocket({
+		roomId,
+		playerId,
+		onPlayerJoined: () => {
+			// Refetch room data immediately when player joins
+			queryClient.refetchQueries({ queryKey: ['room', roomId] })
+		},
+		onPlayerLeft: () => {
+			// Refetch room data immediately when player leaves
+			queryClient.refetchQueries({ queryKey: ['room', roomId] })
+		},
+		onMessage: (message: ServerMessage) => {
+			// Handle other message types as needed
+			if (message.type === 'gameStarting' || message.type === 'roundStart') {
+				queryClient.refetchQueries({ queryKey: ['room', roomId] })
+			}
+		},
+		onError: (error) => {
+			console.error('WebSocket error:', error)
+		},
 	})
 
 	const handleCopyRoomId = async () => {
@@ -89,7 +116,22 @@ function RouteComponent() {
 			<div className="max-w-2xl w-full bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-8 shadow-xl">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<h1 className="text-3xl font-bold text-white mb-2">Game Room</h1>
+					<div className="flex items-center justify-center gap-3 mb-2">
+						<h1 className="text-3xl font-bold text-white">Game Room</h1>
+						{connectionState === 'connected' ? (
+							<div title="Connected">
+								<Wifi className="w-5 h-5 text-green-400" />
+							</div>
+						) : connectionState === 'connecting' ? (
+							<div title="Connecting...">
+								<Wifi className="w-5 h-5 text-yellow-400 animate-pulse" />
+							</div>
+						) : (
+							<div title="Disconnected">
+								<WifiOff className="w-5 h-5 text-red-400" />
+							</div>
+						)}
+					</div>
 					<div className="bg-slate-900/50 rounded-lg p-4 border border-slate-600">
 						<label className="text-sm text-gray-400 mb-2 block">Room ID</label>
 						<div className="flex items-center gap-2">

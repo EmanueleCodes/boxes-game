@@ -3,6 +3,7 @@ import { createTRPCRouter, publicProcedure } from '../init'
 import { roomManager } from '@/lib/game/room'
 import { TRPCError } from '@trpc/server'
 import type { GameRoom, Player } from '@/lib/types'
+import { serializeMessage, type ServerMessage } from '@/lib/websocket/messages'
 
 // Helper function to generate player ID
 function generatePlayerId(): string {
@@ -138,6 +139,17 @@ export const gameRouter = createTRPCRouter({
             // Update last activity
             roomManager.updateLastActivity(input.roomId)
 
+            // Broadcast playerJoined to all connected WebSocket clients
+            const playerJoinedMessage: ServerMessage = {
+                type: 'playerJoined',
+                payload: {
+                    playerId: player.id,
+                    playerName: player.name,
+                    totalPlayers: room.players.size,
+                },
+            }
+            broadcastToRoom(input.roomId, playerJoinedMessage)
+
             // Return playerId and serialized room state
             return { playerId, roomState: serializeRoom(room) }
         }),
@@ -161,3 +173,23 @@ export const gameRouter = createTRPCRouter({
             return { room: serializeRoom(room) }
         }),
 })
+
+// Helper function to broadcast to all WebSocket connections in a room
+function broadcastToRoom(roomId: string, message: ServerMessage) {
+    const room = roomManager.getRoom(roomId)
+    if (!room) return
+
+    const serialized = serializeMessage(message)
+
+    // Send to all connected clients
+    room.websocketConnections.forEach((ws) => {
+        try {
+            if (ws.readyState === 1) {
+                // WebSocket.OPEN = 1
+                ws.send(serialized)
+            }
+        } catch (error) {
+            console.error('Error broadcasting message:', error)
+        }
+    })
+}
