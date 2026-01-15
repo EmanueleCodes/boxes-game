@@ -43,7 +43,8 @@ export class RoomManager {
             roomId,
             players: new Map(),
             currentRound: 0,
-            gameState: 'waiting',
+            gameState: 'notStarted',
+            roundState: 'notStarted',
             roundData: {
                 boxes: [],
                 correctCount: 0,

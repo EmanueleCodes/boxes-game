@@ -38,11 +38,23 @@ function websocketHandler({ request, params }: { request: Request; params: { roo
         return new Response('Room not found', { status: 404 })
     }
 
-    // Create WebSocket pair (Cloudflare Workers API)
-    const { 0: client, 1: server } = new WebSocketPair()
+    // Check if WebSocketPair is available (Cloudflare Workers API)
+    // Note: This might not be available in dev mode - WebSocket may only work in production
+    let client: WebSocket
+    let server: CloudflareWebSocket
+    
+    try {
+        // Create WebSocket pair (Cloudflare Workers API)
+        const pair = new WebSocketPair()
+        client = pair[0]
+        server = pair[1]
 
-    // Accept the WebSocket connection
-    server.accept()
+        // Accept the WebSocket connection
+        server.accept()
+    } catch (error) {
+        console.error('Error creating WebSocket pair:', error)
+        return new Response('Failed to create WebSocket connection. WebSocket may not be supported in dev mode.', { status: 501 })
+    }
 
     // Store connection temporarily (we'll get playerId from join message)
     let playerId: string | null = null

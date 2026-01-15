@@ -12,13 +12,18 @@ export interface Player {
     score: number;
 }
 
-export type GameState = 'waiting' | 'counting' | 'answering' | 'results' | 'finished';
+// Overall game status (game lifecycle)
+export type GameState = 'notStarted' | 'started' | 'finished';
+
+// Current round status (what's happening in this round)
+export type RoundState = 'notStarted' | 'showingBoxes' | 'answering' | 'showResults';
 
 export interface GameRoom {
     roomId: string;
     players: Map<string, Player>;
     currentRound: number;
-    gameState: GameState;
+    gameState: GameState;      // Overall game status
+    roundState: RoundState;    // Current round status
     roundData: {
         boxes: Box[];
         correctCount: number;

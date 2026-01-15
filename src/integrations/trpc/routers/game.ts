@@ -17,6 +17,7 @@ function serializeRoom(room: GameRoom) {
         players: Array.from(room.players.values()),
         currentRound: room.currentRound,
         gameState: room.gameState,
+        roundState: room.roundState,
         roundData: room.roundData,
         scores: Object.fromEntries(room.scores),
         createdAt: room.createdAt,
@@ -25,7 +26,8 @@ function serializeRoom(room: GameRoom) {
 }
 
 // Zod schemas for validation
-const gameStateSchema = z.enum(['waiting', 'counting', 'answering', 'results', 'finished'])
+const gameStateSchema = z.enum(['notStarted', 'started', 'finished'])
+const roundStateSchema = z.enum(['notStarted', 'showingBoxes', 'answering', 'showResults'])
 
 const boxSchema = z.object({
     x: z.number(),
@@ -52,6 +54,7 @@ const roomSchema = z.object({
     players: z.array(playerSchema),
     currentRound: z.number(),
     gameState: gameStateSchema,
+    roundState: roundStateSchema,
     roundData: roundDataSchema,
     scores: z.record(z.string(), z.number()),
     createdAt: z.number(),
@@ -115,7 +118,7 @@ export const gameRouter = createTRPCRouter({
             }
 
             // Check if game has already started
-            if (room.gameState !== 'waiting') {
+            if (room.gameState !== 'notStarted') {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Game has already started',

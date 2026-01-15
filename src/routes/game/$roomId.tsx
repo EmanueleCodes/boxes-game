@@ -7,7 +7,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import type { ServerMessage } from '@/lib/websocket/messages'
 
 export const Route = createFileRoute('/game/$roomId')({
-	component: RouteComponent,
+  component: RouteComponent,
 })
 
 function RouteComponent() {
@@ -16,34 +16,39 @@ function RouteComponent() {
 	const queryClient = useQueryClient()
 	const playerId = typeof window !== 'undefined' ? localStorage.getItem('playerId') : null
 
+	// Check if we're in dev mode (WebSocket might not work in TanStack Start dev server)
+	// WebSocket will work in production on Cloudflare Workers
+	const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
 	const roomQuery = useQuery({
 		queryKey: ['room', roomId],
 		queryFn: async () => {
 			return await trpcClient.game.status.query({ roomId })
 		},
-		// No more polling - WebSocket handles real-time updates
+		// Fall back to polling in dev mode (WebSocket doesn't work in TanStack Start dev server)
+		refetchInterval: isDev ? 2000 : false,
 	})
 
-	// WebSocket connection for real-time updates
+	// WebSocket connection for real-time updates (disabled in dev mode)
 	const { connectionState } = useWebSocket({
 		roomId,
-		playerId,
+		playerId: isDev ? null : playerId, // Disable WebSocket in dev mode
+		autoReconnect: !isDev,
 		onPlayerJoined: () => {
-			// Refetch room data immediately when player joins
 			queryClient.refetchQueries({ queryKey: ['room', roomId] })
 		},
 		onPlayerLeft: () => {
-			// Refetch room data immediately when player leaves
 			queryClient.refetchQueries({ queryKey: ['room', roomId] })
 		},
 		onMessage: (message: ServerMessage) => {
-			// Handle other message types as needed
 			if (message.type === 'gameStarting' || message.type === 'roundStart') {
 				queryClient.refetchQueries({ queryKey: ['room', roomId] })
 			}
 		},
 		onError: (error) => {
-			console.error('WebSocket error:', error)
+			if (!isDev) {
+				console.error('WebSocket error:', error)
+			}
 		},
 	})
 
@@ -154,16 +159,19 @@ function RouteComponent() {
 				</div>
 
 				{/* Game State Display */}
-				{room.gameState !== 'waiting' && (
+				{room.gameState !== 'notStarted' && (
 					<div className="mb-6 p-4 bg-yellow-900/50 border border-yellow-700 rounded-lg">
 						<p className="text-yellow-300 text-center">
 							Game Status: <span className="font-semibold capitalize">{room.gameState}</span>
+							{room.gameState === 'started' && (
+								<span className="ml-2">- Round {room.currentRound} ({room.roundState})</span>
+							)}
 						</p>
 					</div>
 				)}
 
 				{/* Waiting Room */}
-				{room.gameState === 'waiting' && (
+				{room.gameState === 'notStarted' && (
 					<div className="space-y-6">
 						{/* Player Count */}
 						<div className="flex items-center justify-center gap-2 text-gray-300">
