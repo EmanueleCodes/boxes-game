@@ -15,7 +15,7 @@ export class RoomManager {
         this.cleanupInterval = setInterval(() => this.cleanupRooms(), 1000 * 60 * 5);
     }
 
-    private cleanupRooms(): void {
+    public cleanupRooms(): void {
         const now = Date.now()
         this.rooms.forEach((room, roomId) => {
             if (now - room.lastActivity > 1000 * 60 * 5) {

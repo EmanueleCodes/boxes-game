@@ -59,11 +59,40 @@ const roomSchema = z.object({
 
 export const gameRouter = createTRPCRouter({
     create: publicProcedure
+        .input(
+            z.object({
+                playerName: z.string().min(1, 'Player name is required'),
+            })
+        )
         .output(z.object({ roomId: z.string(), playerId: z.string() }))
-        .mutation(async () => {
+        .mutation(async ({ input }) => {
             const roomId = roomManager.createRoom()
+            const room = roomManager.getRoom(roomId)
+            
+            if (!room) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create room',
+                })
+            }
+
             // Generate playerId for the room creator
             const playerId = generatePlayerId()
+
+            // Create player object
+            const player: Player = {
+                id: playerId,
+                name: input.playerName,
+                score: 0,
+            }
+
+            // Add creator as first player in room
+            room.players.set(playerId, player)
+            room.scores.set(playerId, 0)
+
+            // Update last activity
+            roomManager.updateLastActivity(roomId)
+
             return { roomId, playerId }
         }),
 
@@ -125,8 +154,10 @@ export const gameRouter = createTRPCRouter({
                 })
             }
 
+            // Update last activity (viewing room counts as activity)
+            roomManager.updateLastActivity(input.roomId)
+
             // Convert Maps to serializable format
             return { room: serializeRoom(room) }
-        }
-    ),
+        }),
 })

@@ -11,10 +11,13 @@ export const Route = createFileRoute('/game/create')({
 function CreateGame() {
     const [roomId, setRoomId] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [playerName, setPlayerName] = useState<string>('')
 
     const createGameRoomMutation = useMutation({
         mutationFn: async () => {
-            return await trpcClient.game.create.mutate()
+            return await trpcClient.game.create.mutate({
+                playerName: playerName.trim(),
+            })
         },
         onSuccess: (data) => {
             setRoomId(data.roomId)
@@ -56,9 +59,27 @@ function CreateGame() {
 
                 {!roomId ? (
                     <div className="space-y-4">
+                        <div>
+                            <label className="text-sm text-gray-400 mb-2 block">
+                                Your Name
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Enter your name"
+                                value={playerName}
+                                onChange={(e) => setPlayerName(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && playerName.trim() && !createGameRoomMutation.isPending) {
+                                        handleCreateRoom()
+                                    }
+                                }}
+                            />
+                        </div>
+
                         <button
                             onClick={handleCreateRoom}
-                            disabled={createGameRoomMutation.isPending}
+                            disabled={!playerName.trim() || createGameRoomMutation.isPending}
                             className="w-full px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50 flex items-center justify-center gap-2"
                         >
                             {createGameRoomMutation.isPending ? (
@@ -130,6 +151,7 @@ function CreateGame() {
                             <button
                                 onClick={() => {
                                     setRoomId(null)
+                                    setPlayerName('')
                                     createGameRoomMutation.reset()
                                 }}
                                 className="text-gray-400 hover:text-gray-300 text-sm transition-colors"
