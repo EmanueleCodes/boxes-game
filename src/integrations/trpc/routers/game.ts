@@ -3,7 +3,8 @@ import { createTRPCRouter, publicProcedure } from '../init'
 import { roomManager } from '@/lib/game/room'
 import { TRPCError } from '@trpc/server'
 import type { GameRoom, Player } from '@/lib/types'
-import { serializeMessage, type ServerMessage } from '@/lib/websocket/messages'
+import { serializeMessage, type ServerMessage, createGameStartingMessage, createRoundStartMessage } from '@/lib/websocket/messages'
+import { startGame, startRound, canStartGame } from '@/lib/game/gameLogic'
 
 // Helper function to generate player ID
 function generatePlayerId(): string {
@@ -37,10 +38,24 @@ const boxSchema = z.object({
     color: z.string(),
 })
 
+const boxAnimationSchema = z.object({
+    type: z.enum(['static', 'slide', 'stagger', 'fade']),
+    visibleDuration: z.number(),
+    config: z
+        .object({
+            direction: z.enum(['left', 'right', 'up', 'down', 'forward', 'backward']).optional(),
+            speed: z.number().optional(),
+            staggerDelay: z.number().optional(),
+            fadeDuration: z.number().optional(),
+        })
+        .optional(),
+})
+
 const roundDataSchema = z.object({
     boxes: z.array(boxSchema),
     correctCount: z.number(),
     startedAt: z.number(),
+    animation: boxAnimationSchema,
 })
 
 const playerSchema = z.object({
@@ -174,6 +189,58 @@ export const gameRouter = createTRPCRouter({
 
             // Convert Maps to serializable format
             return { room: serializeRoom(room) }
+        }),
+
+    start: publicProcedure
+        .input(z.object({ roomId: z.string() }))
+        .output(z.object({ success: z.boolean() }))
+        .mutation(async ({ input }) => {
+            const room = roomManager.getRoom(input.roomId)
+            
+            if (!room) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Room not found',
+                })
+            }
+
+            // Validate game can start
+            if (!canStartGame(room)) {
+                if (room.gameState !== 'notStarted') {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Game has already started',
+                    })
+                }
+                if (room.players.size < 2) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Need at least 2 players to start the game',
+                    })
+                }
+            }
+
+            // Start the game
+            startGame(room)
+
+            // Start the first round (generates boxes)
+            startRound(room)
+
+            // Update last activity
+            roomManager.updateLastActivity(input.roomId)
+
+            // Broadcast gameStarting message to all connected clients
+            const gameStartingMessage = createGameStartingMessage(10) // Total rounds = 10
+            broadcastToRoom(input.roomId, gameStartingMessage)
+
+            // Broadcast roundStart message with boxes data
+            const roundStartMessage = createRoundStartMessage(
+                room.currentRound,
+                room.roundData.boxes
+            )
+            broadcastToRoom(input.roomId, roundStartMessage)
+
+            return { success: true }
         }),
 })
 

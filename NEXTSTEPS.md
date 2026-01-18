@@ -2,7 +2,7 @@
 
 This document tracks the implementation progress of the multiplayer counting game. Check off items as you complete them!
 
-**Last Updated:** Initial creation
+**Last Updated:** After box generation system + assessment of current state
 
 ---
 
@@ -12,8 +12,9 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [X] Create `src/lib/game/types.ts`
   - [X] Define `Box` interface (x, y, z positions)
   - [X] Define `Player` interface (id, name, score)
-  - [X] Define `GameState` type union ('waiting' | 'counting' | 'answering' | 'results' | 'finished')
-  - [X] Define `GameRoom` interface (roomId, players, currentRound, gameState, roundData, scores, etc.)
+  - [X] Define `GameState` type union ('notStarted' | 'started' | 'finished')
+  - [X] Define `RoundState` type union ('notStarted' | 'showingBoxes' | 'answering' | 'showResults')
+  - [X] Define `GameRoom` interface (roomId, players, currentRound, gameState, roundState, roundData, scores, etc.)
   - [X] Define `RoundData` interface
   - [X] Export all types
 
@@ -45,18 +46,26 @@ This document tracks the implementation progress of the multiplayer counting gam
   - [X] Add input/output validation with Zod schemas
 
 ### 1.4 Basic UI - Lobby
-- [ ] Create `src/routes/game/create.tsx`
-  - [ ] Add "Create Room" button
-  - [ ] Call `create` mutation
-  - [ ] Display room ID
-  - [ ] Add "Copy Room ID" functionality
-  - [ ] Add link/redirect to join page
-- [ ] Create `src/routes/game/join.tsx` (or add to create page)
-  - [ ] Add input field for room ID
-  - [ ] Add "Join Room" button
-  - [ ] Call `join` mutation
-  - [ ] Handle errors (room not found, etc.)
-  - [ ] Redirect to game room on success
+- [X] Create `src/routes/game/create.tsx`
+  - [X] Add "Create Room" button
+  - [X] Call `create` mutation
+  - [X] Display room ID
+  - [X] Add "Copy Room ID" functionality
+  - [X] Add player name input
+  - [X] Redirect to game room on success
+- [X] Create `src/routes/game/join.tsx`
+  - [X] Add input field for room ID
+  - [X] Add input field for player name
+  - [X] Add "Join Room" button
+  - [X] Call `join` mutation
+  - [X] Handle errors (room not found, etc.)
+  - [X] Redirect to game room on success
+- [X] Create `src/routes/game/$roomId.tsx` (waiting room)
+  - [X] Display room ID
+  - [X] Show player list
+  - [X] Show game status
+  - [X] Real-time updates via WebSocket (or polling in dev)
+  - [X] Connection status indicator
 
 ### 1.5 Testing Phase 1
 - [ ] Test room creation (multiple rooms, unique IDs)
@@ -65,40 +74,45 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Test room cleanup (inactive rooms)
 - [ ] Verify no memory leaks
 
-**Phase 1 Status:** ⬜ Not Started
+**Phase 1 Status:** ✅ **COMPLETED** (Testing optional)
 
 ---
 
 ## Phase 2: WebSocket Infrastructure
 
 ### 2.1 WebSocket Server Setup
-- [ ] Research Cloudflare Workers WebSocket API
-- [ ] Create `src/routes/api/game/ws.ts` (or appropriate endpoint)
-  - [ ] Set up WebSocket upgrade handler
-  - [ ] Handle connection acceptance
-  - [ ] Map connections to rooms
+- [X] Research Cloudflare Workers WebSocket API
+- [X] Create `src/routes/api/game/ws.$roomId.tsx`
+  - [X] Set up WebSocket upgrade handler
+  - [X] Handle connection acceptance (WebSocketPair)
+  - [X] Map connections to rooms
+  - [X] Handle Cloudflare Workers specific types
 
 ### 2.2 Message Protocol
-- [ ] Create `src/lib/websocket/messages.ts`
-  - [ ] Define `ClientMessage` types (join, answer, ready, ping)
-  - [ ] Define `ServerMessage` types (playerJoined, playerLeft, gameStarting, etc.)
-  - [ ] Create message parsing/serialization functions
-  - [ ] Add type guards for message validation
+- [X] Create `src/lib/websocket/messages.ts`
+  - [X] Define `ClientMessage` types (join, answer, ready, ping)
+  - [X] Define `ServerMessage` types (playerJoined, playerLeft, gameStarting, roundStart, etc.)
+  - [X] Create message parsing/serialization functions
+  - [X] Add type guards for message validation
+  - [X] Use discriminated unions for type safety
 
 ### 2.3 Connection Management
-- [ ] Implement connection → room mapping
-- [ ] Store WebSocket connections in GameRoom
-- [ ] Handle connection lifecycle (connect, disconnect)
-- [ ] Implement heartbeat/ping-pong mechanism
-- [ ] Handle disconnections gracefully (remove player, cleanup)
+- [X] Implement connection → room mapping
+- [X] Store WebSocket connections in GameRoom
+- [X] Handle connection lifecycle (connect, disconnect)
+- [X] Implement heartbeat/ping-pong mechanism
+- [X] Handle disconnections gracefully (remove player, cleanup)
+- [X] Broadcast playerJoined/playerLeft messages
 
 ### 2.4 WebSocket Client (React)
-- [ ] Create `src/hooks/useWebSocket.ts`
-  - [ ] Manage WebSocket connection state
-  - [ ] Handle connection/reconnection logic
-  - [ ] Send messages helper function
-  - [ ] Receive messages and update state
-  - [ ] Handle errors and connection issues
+- [X] Create `src/hooks/useWebSocket.ts`
+  - [X] Manage WebSocket connection state
+  - [X] Handle connection/reconnection logic
+  - [X] Send messages helper functions (sendJoin, sendPing, sendReady, sendAnswer)
+  - [X] Receive messages and update state
+  - [X] Handle errors and connection issues
+  - [X] Auto-send join message on connection
+  - [X] Ping/pong heartbeat mechanism
 
 ### 2.5 Testing Phase 2
 - [ ] Test WebSocket connection (single client)
@@ -107,34 +121,51 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Test disconnection handling
 - [ ] Test ping-pong heartbeat
 
-**Phase 2 Status:** ⬜ Not Started
+**Phase 2 Status:** ✅ **COMPLETED** (Testing optional, dev mode uses polling)
 
 ---
 
 ## Phase 3: Game Logic & State Management
 
 ### 3.1 Game Room Logic
-- [ ] Create `src/lib/game/gameLogic.ts`
-  - [ ] Implement game state machine
-  - [ ] Add state transition functions
-  - [ ] Implement round management (10 rounds)
-  - [ ] Add timing logic (3s visible, answer window)
+- [X] Create `src/lib/game/gameLogic.ts`
+  - [X] Implement game state machine (GameState + RoundState separation)
+  - [X] Add `canStartGame()` function
+  - [X] Add `startGame()` function (transitions to 'started', initializes round 1)
+  - [X] Add `startRound()` function (generates boxes, sets roundState to 'showingBoxes')
+  - [X] Add `transitionToAnswering()` function (showingBoxes → answering)
+  - [X] Add `transitionToResults()` function (answering → showResults)
+  - [X] Add `nextRound()` function (increments round or finishes game)
+  - [ ] **TODO:** Integrate with actual game flow (timing, triggers)
+  - [ ] **TODO:** Add timing logic (3s visible, answer window)
 
 ### 3.2 Box Generation
-- [ ] Create `src/lib/game/boxGenerator.ts`
-  - [ ] Implement box generation algorithm
-  - [ ] Generate random count (5-15 boxes)
-  - [ ] Create 3D grid-based positions
-  - [ ] Avoid overlapping boxes
-  - [ ] Return array of Box positions
+- [X] Create `src/lib/game/boxGenerator.ts`
+  - [X] Implement pattern-based box generation system
+  - [X] Create `BoxGroup` interface (boxes + animation metadata)
+  - [X] Implement pattern selector (difficulty-based)
+  - [X] Create `simpleStatic` pattern (4 boxes, static, 3s)
+  - [X] Create `slidingPlane` pattern (5 boxes, sliding, 2s)
+  - [X] Create `snakeStaggered` pattern (9 boxes, staggered, 1.5s)
+  - [X] Integrate with `startRound()` in gameLogic
+  - [ ] **Future:** Add more patterns (pyramid, grid, etc.)
 
 ### 3.3 Answer Collection
-- [ ] Implement answer validation
-  - [ ] Validate round number matches
-  - [ ] Validate timestamp within window
-  - [ ] Only accept first answer per player per round
-  - [ ] Reject invalid numbers
-- [ ] Store answers with timestamps
+- [ ] **Add answer storage to GameRoom** (in `types.ts`)
+  - [ ] Add `roundAnswers: Map<string, { count: number, timestamp: number }>` to GameRoom
+  - [ ] Reset answers at start of each round
+- [ ] **Implement answer validation** (in `gameLogic.ts` or new `answerCollection.ts`)
+  - [ ] Create `submitAnswer(room, playerId, round, count)` function
+  - [ ] Validate round number matches current round
+  - [ ] Validate timestamp within answer window
+  - [ ] Only accept first answer per player per round (check if already answered)
+  - [ ] Reject invalid numbers (negative, NaN, etc.)
+  - [ ] Store valid answers in `roundAnswers` map
+- [ ] **Integrate with WebSocket handler** (in `ws.$roomId.tsx`)
+  - [ ] Handle `answer` message in `handleMessage()`
+  - [ ] Call `submitAnswer()` with validation
+  - [ ] Broadcast `answerReceived` message (optional, for UI feedback)
+  - [ ] Reject invalid answers with error message
 
 ### 3.4 Scoring System
 - [ ] Create `src/lib/game/scoring.ts`
@@ -147,13 +178,27 @@ This document tracks the implementation progress of the multiplayer counting gam
   - [ ] Update player total scores
 
 ### 3.5 Game Loop
-- [ ] Implement server-side game loop
-  - [ ] Start game when minimum players (2+)
-  - [ ] Round progression logic
-  - [ ] Box visibility timing
-  - [ ] Answer collection window
-  - [ ] Results calculation and broadcast
-  - [ ] Game finished logic (after 10 rounds)
+- [ ] **Game Start Trigger** (first step - unblocks waiting room)
+  - [ ] Add "Start Game" button to waiting room UI (`$roomId.tsx`)
+  - [ ] Create tRPC mutation `game.start` OR handle via WebSocket `ready` message
+  - [ ] When all players ready OR creator clicks "Start" → call `startGame(room)`
+  - [ ] Broadcast `gameStarting` message to all clients
+  - [ ] **ALTERNATIVE:** Auto-start after 3 seconds when 2+ players ready
+- [ ] **Round Execution with Timing** (core game loop)
+  - [ ] After `startGame()` → immediately call `startRound(room)`
+  - [ ] Broadcast `roundStart` message with boxes data
+  - [ ] Set timer for `roundData.animation.visibleDuration` (varies by pattern)
+  - [ ] After timer → call `transitionToAnswering(room)` → broadcast `boxesHidden`
+  - [ ] Set timer for answer collection window (e.g., 10 seconds)
+  - [ ] After timer OR all players answered → calculate scores → `transitionToResults(room)`
+  - [ ] Broadcast `roundResults` with scores
+  - [ ] After 3 seconds → call `nextRound(room)` OR `gameFinished` if round 10
+  - [ ] If more rounds → repeat from `startRound()`
+  - [ ] If finished → broadcast `gameFinished` message
+- [ ] **Integration Points**
+  - [ ] Use `roundData.animation.visibleDuration` for timing (varies per pattern)
+  - [ ] Integrate answer collection (3.3) - check if all answered before timeout
+  - [ ] Integrate scoring (3.4) - calculate after answer window closes
 
 ### 3.6 Testing Phase 3
 - [ ] Test box generation (count, positions, no overlaps)
@@ -162,7 +207,17 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Test game state transitions
 - [ ] Test full game flow (10 rounds)
 
-**Phase 3 Status:** ⬜ Not Started
+**Phase 3 Status:** 🟡 **IN PROGRESS** (3.1-3.2 done, 3.3-3.6 remaining)
+
+**Assessment:**
+- ✅ State machine complete and working
+- ✅ Box generation complete and integrated
+- ❌ **BLOCKER:** No game start trigger - players stuck on "Ready to start!" message
+- ❌ Answer collection not implemented (WebSocket `answer` handler exists but doesn't process)
+- ❌ Scoring not implemented
+- ❌ Game loop timing not implemented (rounds don't progress)
+
+**Next Priority:** Implement game start trigger (3.5a) to unblock waiting room → enables basic gameplay testing
 
 ---
 
@@ -212,17 +267,20 @@ This document tracks the implementation progress of the multiplayer counting gam
 ## Phase 5: UI & Polish
 
 ### 5.1 Game Route
-- [ ] Create `src/routes/game/[roomId].tsx`
-  - [ ] Handle room ID from URL
-  - [ ] Connect WebSocket on mount
-  - [ ] Render appropriate screen based on game state
+- [X] Create `src/routes/game/$roomId.tsx` (waiting room view)
+  - [X] Handle room ID from URL
+  - [X] Connect WebSocket on mount (or polling in dev)
+  - [X] Render waiting room UI
+  - [ ] **TODO:** Render game view when gameState === 'started'
+  - [ ] **TODO:** Render different screens based on roundState
 
 ### 5.2 Waiting Room Component
-- [ ] Create `src/components/game/WaitingRoom.tsx`
-  - [ ] Display player list
-  - [ ] Show room ID
-  - [ ] Show "Waiting for players..." message
-  - [ ] Display minimum players requirement
+- [X] Waiting room UI implemented in `$roomId.tsx`
+  - [X] Display player list
+  - [X] Show room ID
+  - [X] Show "Waiting for players..." message
+  - [X] Display minimum players requirement
+  - [X] Real-time player updates
 
 ### 5.3 Game View Component
 - [ ] Create `src/components/game/GameView.tsx`
@@ -273,7 +331,7 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Test on mobile devices
 - [ ] Test UI responsiveness
 
-**Phase 5 Status:** ⬜ Not Started
+**Phase 5 Status:** 🟡 **IN PROGRESS** (5.1-5.2 done, rest remaining)
 
 ---
 
@@ -333,11 +391,13 @@ This document tracks the implementation progress of the multiplayer counting gam
 ## Notes & Decisions
 
 ### Decisions Made
-- [ ] Minimum players to start: ___ (Recommendation: 2)
+- [X] Minimum players to start: **2** ✅
 - [ ] Maximum players per room: ___ (Recommendation: 8-10)
 - [ ] Round timing confirmed: 3s visible, ___s answer window
-- [ ] Player names: Anonymous or named? ___
+- [X] Player names: **Named** (required on create/join) ✅
 - [ ] Mobile support priority: High/Medium/Low
+- [X] State structure: **Separated GameState (notStarted/started/finished) and RoundState (notStarted/showingBoxes/answering/showResults)** ✅
+- [X] Dev mode: **WebSocket disabled, using polling** (Cloudflare Workers WebSocket not fully supported in local dev) ✅
 
 ### Issues & Blockers
 - _Add issues as they come up_
@@ -349,18 +409,56 @@ This document tracks the implementation progress of the multiplayer counting gam
 
 ## Quick Reference
 
-**Current Focus:** Phase 1 - Foundation & Room System
+**Current Focus:** Phase 3 - Game Logic & State Management
 
-**Next Immediate Steps:**
-1. Create `src/lib/game/types.ts` with all type definitions
-2. Implement `generateRoomId()` function
-3. Create `RoomManager` class
-4. Set up tRPC game router with `create` endpoint
-5. Build simple UI to test room creation
+**Completed:**
+- ✅ Phase 1: Foundation & Room System (complete)
+- ✅ Phase 2: WebSocket Infrastructure (complete)
+- 🟡 Phase 3: Game Logic (state machine + box generation done, need answer collection, scoring, game loop)
+- 🟡 Phase 5: UI (waiting room done, game view remaining)
 
-**Key Files to Create:**
-- `src/lib/game/types.ts`
-- `src/lib/game/room.ts`
-- `src/integrations/trpc/routers/game.ts`
-- `src/routes/game/create.tsx`
-- `src/routes/game/[roomId].tsx`
+**Current Blocker:** Players stuck on "Ready to start! Waiting for game to begin..." - no game start trigger exists yet.
+
+**Recommended Implementation Path** (ordered by dependencies):
+
+### Option A: Minimal Working Game (Fastest to playable)
+1. **Phase 3.5a: Game Start Trigger** ⚡ **DO THIS FIRST** (unblocks waiting room)
+   - Add "Start Game" button to waiting room UI
+   - Create tRPC mutation `game.start` OR handle `ready` message → call `startGame(room)`
+   - Immediately call `startRound(room)` → broadcast `roundStart` 
+   - **Result:** Game can start, boxes appear (even if answers/scoring not fully working)
+
+2. **Phase 3.3: Answer Collection** (enables player input)
+   - Add `roundAnswers` to GameRoom
+   - Implement `submitAnswer()` validation
+   - Handle `answer` WebSocket messages
+
+3. **Phase 3.4: Scoring System** (enables scoring)
+   - Implement `calculateScore()` and `calculateRoundScores()`
+
+4. **Phase 3.5b: Full Game Loop** (complete timing/orchestration)
+   - Add all timing logic (visibility duration, answer window, results delay)
+   - Round progression with proper state transitions
+   - Integration with answer collection and scoring
+
+### Option B: Complete Implementation (Better architecture)
+1. **Phase 3.3:** Answer collection (foundation)
+2. **Phase 3.4:** Scoring system (foundation)
+3. **Phase 3.5:** Full game loop (integrates everything)
+
+**Recommendation:** Start with **Option A (3.5a)** to unblock the waiting room and get basic gameplay working. Then add answer collection and scoring. This gives faster feedback and a working end-to-end flow.
+
+**Key Files Status:**
+- ✅ `src/lib/game/types.ts` - Complete (with GameState + RoundState)
+- ✅ `src/lib/game/room.ts` - Complete
+- ✅ `src/integrations/trpc/routers/game.ts` - Complete
+- ✅ `src/routes/game/create.tsx` - Complete
+- ✅ `src/routes/game/join.tsx` - Complete
+- ✅ `src/routes/game/$roomId.tsx` - Waiting room complete
+- ✅ `src/lib/game/gameLogic.ts` - State machine complete
+- ✅ `src/lib/websocket/messages.ts` - Complete
+- ✅ `src/hooks/useWebSocket.ts` - Complete
+- ✅ `src/routes/api/game/ws.$roomId.tsx` - Complete
+- ✅ `src/lib/game/boxGenerator.ts` - Complete (pattern-based system)
+- ⬜ `src/lib/game/scoring.ts` - **TODO: Create**
+- ⬜ `src/lib/game/answerCollection.ts` - **TODO: Create** (or integrate into gameLogic/WebSocket handler)

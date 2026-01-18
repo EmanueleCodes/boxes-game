@@ -1,5 +1,5 @@
 import { trpcClient } from '@/integrations/tanstack-query/root-provider'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Copy, Check, Users, ArrowLeft, Wifi, WifiOff } from 'lucide-react'
@@ -27,6 +27,20 @@ function RouteComponent() {
 		},
 		// Fall back to polling in dev mode (WebSocket doesn't work in TanStack Start dev server)
 		refetchInterval: isDev ? 2000 : false,
+	})
+
+	const startGameMutation = useMutation({
+		mutationFn: async () => {
+			return await trpcClient.game.start.mutate({ roomId })
+		},
+		onSuccess: () => {
+			// Refetch room status to get updated game state
+			queryClient.refetchQueries({ queryKey: ['room', roomId] })
+		},
+		onError: (error: Error) => {
+			console.error('Failed to start game:', error)
+			alert(error.message || 'Failed to start game. Please try again.')
+		},
 	})
 
 	// WebSocket connection for real-time updates (disabled in dev mode)
@@ -182,11 +196,20 @@ function RouteComponent() {
 						</div>
 
 						{/* Status Message */}
-						<div className="text-center">
+						<div className="text-center space-y-4">
 							{canStart ? (
-								<p className="text-green-400 text-lg font-semibold">
-									✓ Ready to start! Waiting for game to begin...
-								</p>
+								<>
+									<p className="text-green-400 text-lg font-semibold">
+										✓ Ready to start!
+									</p>
+									<button
+										onClick={() => startGameMutation.mutate()}
+										disabled={startGameMutation.isPending}
+										className="w-full px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors shadow-lg hover:shadow-cyan-500/50"
+									>
+										{startGameMutation.isPending ? 'Starting Game...' : 'Start Game'}
+									</button>
+								</>
 							) : (
 								<p className="text-yellow-400 text-lg font-semibold">
 									Waiting for players... Need {minPlayers - playerCount} more player{minPlayers - playerCount > 1 ? 's' : ''}

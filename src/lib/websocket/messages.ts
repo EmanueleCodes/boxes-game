@@ -202,6 +202,21 @@ export function createPingMessage(): PingMessage {
     }
 }
 
+// Server message creation helpers (for consistency and type safety)
+export function createGameStartingMessage(roundCount: number): GameStartingMessage {
+    return {
+        type: 'gameStarting',
+        payload: { roundCount },
+    }
+}
+
+export function createRoundStartMessage(round: number, boxes: Box[]): RoundStartMessage {
+    return {
+        type: 'roundStart',
+        payload: { round, boxes },
+    }
+}
+
 // ============================================================================
 // HELPER FUNCTIONS - Parse Messages
 // ============================================================================

@@ -1,4 +1,5 @@
 import type { GameRoom } from "../types"
+import { generateBoxGroup } from "./boxGenerator"
 
 /**
  * Check if game can start (2+ players, game not started)
@@ -27,13 +28,13 @@ export function startGame(room: GameRoom): void {
 
 /**
  * Start a round (happens 10 times - once per round)
- * - Generates boxes for current round
+ * - Generates boxes for current round using pattern system
  * - Sets roundData with boxes and correctCount
  * - Sets startedAt timestamp
  * - Transitions roundState: 'notStarted' → 'showingBoxes'
  * - Requires: gameState must be 'started'
  */
-export function startRound(room: GameRoom, boxes: Array<{ x: number; y: number; z: number; size: number; color: string }>, correctCount: number): void {
+export function startRound(room: GameRoom): void {
     if (room.gameState !== 'started') {
         throw new Error(`Cannot start round: game must be in 'started' state, currently '${room.gameState}'`)
     }
@@ -41,10 +42,15 @@ export function startRound(room: GameRoom, boxes: Array<{ x: number; y: number; 
         throw new Error(`Cannot start round: round must be in 'notStarted' state, currently '${room.roundState}'`)
     }
 
+    // Generate box group based on current round
+    const boxGroup = generateBoxGroup(room.currentRound)
+
     room.roundData = {
-        boxes,
-        correctCount,
+        boxes: boxGroup.boxes,
+        correctCount: boxGroup.correctCount,
         startedAt: Date.now(),
+        // Store animation metadata for client-side rendering
+        animation: boxGroup.animation,
     }
     room.roundState = 'showingBoxes'
 }

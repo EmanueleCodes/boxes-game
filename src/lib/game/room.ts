@@ -49,6 +49,10 @@ export class RoomManager {
                 boxes: [],
                 correctCount: 0,
                 startedAt: 0, // 0 until game actually starts
+                animation: {
+                    type: 'static',
+                    visibleDuration: 3000, // Default, will be replaced when round starts
+                },
             },
             scores: new Map(),
             websocketConnections: new Map(),

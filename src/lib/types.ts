@@ -1,9 +1,35 @@
+/**
+ * Individual box entity - just the box properties
+ * Handles styling, position, appearance
+ */
 export interface Box {
     x: number;
     y: number;
     z: number;
     size: number;
     color: string;
+    // Future: texture, material, etc.
+}
+
+/**
+ * Animation configuration for a box group
+ * Owned by the group, not individual boxes
+ */
+export interface BoxAnimation {
+    /** Type of animation to use */
+    type: 'static' | 'slide' | 'stagger' | 'fade'
+    /** Duration boxes are visible (milliseconds) */
+    visibleDuration: number
+    /** Pattern-specific animation configuration */
+    config?: {
+        /** For slide: direction and speed */
+        direction?: 'left' | 'right' | 'up' | 'down' | 'forward' | 'backward'
+        speed?: number
+        /** For stagger: delay between each box appearance (milliseconds) */
+        staggerDelay?: number
+        /** For fade: fade in/out duration */
+        fadeDuration?: number
+    }
 }
 
 export interface Player {
@@ -28,6 +54,7 @@ export interface GameRoom {
         boxes: Box[];
         correctCount: number;
         startedAt: number;
+        animation: BoxAnimation;
     };
     scores: Map<string, number>;
     websocketConnections: Map<string, WebSocket>;
@@ -39,5 +66,6 @@ export interface RoundData {
     boxes: Box[];
     correctCount: number;
     startedAt: number;
+    animation: BoxAnimation; // Animation metadata for the box group
 }
 
