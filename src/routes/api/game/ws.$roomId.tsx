@@ -32,11 +32,9 @@ function websocketHandler({ request, params }: { request: Request; params: { roo
         return new Response('Expected WebSocket', { status: 426 })
     }
 
-    // Validate room exists
-    const room = roomManager.getRoom(roomId)
-    if (!room) {
-        return new Response('Room not found', { status: 404 })
-    }
+    // NOTE: We don't validate room exists here because Cloudflare Workers are stateless.
+    // The room created via tRPC may be in a different isolate's memory.
+    // The join message handler will validate the player exists.
 
     // Check if WebSocketPair is available (Cloudflare Workers API)
     // Note: This might not be available in dev mode - WebSocket may only work in production
@@ -187,24 +185,48 @@ function handleDisconnection(roomId: string, playerId: string) {
     // Remove WebSocket connection
     room.websocketConnections.delete(playerId)
 
-    // Remove player from room
-    room.players.delete(playerId)
-    room.scores.delete(playerId)
+    const player = room.players.get(playerId)
+    
+    if (!player) {
+        // Player already removed, nothing to do
+        return
+    }
 
-    // Broadcast player left
-    broadcastToRoom(roomId, {
-        type: 'playerLeft',
-        payload: {
-            playerId,
-            totalPlayers: room.players.size,
-        },
-    })
+    // If game hasn't started yet, remove player completely
+    // If game has started, mark as inactive (keep them in game for scoring)
+    if (room.gameState === 'notStarted') {
+        // Remove player from room
+        room.players.delete(playerId)
+        room.scores.delete(playerId)
 
-    // Cleanup if room is empty
-    if (room.players.size === 0) {
-        roomManager.deleteRoom(roomId)
+        // Broadcast player left
+        broadcastToRoom(roomId, {
+            type: 'playerLeft',
+            payload: {
+                playerId,
+                totalPlayers: room.players.size,
+            },
+        })
+
+        // Cleanup if room is empty
+        if (room.players.size === 0) {
+            roomManager.deleteRoom(roomId)
+        } else {
+            roomManager.updateLastActivity(roomId)
+        }
     } else {
+        // Game is in progress - mark player as inactive but keep them in room
+        player.active = false
         roomManager.updateLastActivity(roomId)
+
+        // Broadcast player disconnected (different from left - they're still in the game)
+        broadcastToRoom(roomId, {
+            type: 'playerLeft',
+            payload: {
+                playerId,
+                totalPlayers: room.players.size,
+            },
+        })
     }
 }
 

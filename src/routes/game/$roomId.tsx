@@ -1,10 +1,13 @@
 import { trpcClient } from '@/integrations/tanstack-query/root-provider'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Copy, Check, Users, ArrowLeft, Wifi, WifiOff } from 'lucide-react'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import type { ServerMessage } from '@/lib/websocket/messages'
+
+// Note: WebSocket is disabled because Cloudflare Workers require Durable Objects
+// to maintain state across isolates. Using polling as a reliable fallback.
 
 export const Route = createFileRoute('/game/$roomId')({
   component: RouteComponent,
@@ -16,17 +19,18 @@ function RouteComponent() {
 	const queryClient = useQueryClient()
 	const playerId = typeof window !== 'undefined' ? localStorage.getItem('playerId') : null
 
-	// Check if we're in dev mode (WebSocket might not work in TanStack Start dev server)
-	// WebSocket will work in production on Cloudflare Workers
-	const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+	// WebSocket requires Durable Objects on Cloudflare Workers to maintain state.
+	// For now, we use polling which works reliably across all environments.
+	// TODO: Implement Durable Objects for true real-time WebSocket support
+	const usePolling = true // Always use polling until Durable Objects are implemented
 
 	const roomQuery = useQuery({
 		queryKey: ['room', roomId],
 		queryFn: async () => {
 			return await trpcClient.game.status.query({ roomId })
 		},
-		// Fall back to polling in dev mode (WebSocket doesn't work in TanStack Start dev server)
-		refetchInterval: isDev ? 2000 : false,
+		// Use polling for real-time updates (2 second interval)
+		refetchInterval: usePolling ? 2000 : false,
 	})
 
 	const startGameMutation = useMutation({
@@ -43,11 +47,12 @@ function RouteComponent() {
 		},
 	})
 
-	// WebSocket connection for real-time updates (disabled in dev mode)
+	// WebSocket connection disabled - requires Durable Objects on Cloudflare Workers
+	// Using polling instead for reliable cross-isolate state management
 	const { connectionState } = useWebSocket({
 		roomId,
-		playerId: isDev ? null : playerId, // Disable WebSocket in dev mode
-		autoReconnect: !isDev,
+		playerId: usePolling ? null : playerId, // Disable WebSocket when using polling
+		autoReconnect: !usePolling,
 		onPlayerJoined: () => {
 			queryClient.refetchQueries({ queryKey: ['room', roomId] })
 		},
@@ -60,9 +65,7 @@ function RouteComponent() {
 			}
 		},
 		onError: (error) => {
-			if (!isDev) {
-				console.error('WebSocket error:', error)
-			}
+			console.error('WebSocket error:', error)
 		},
 	})
 
@@ -75,6 +78,21 @@ function RouteComponent() {
 			console.error('Failed to copy:', err)
 		}
 	}
+
+	// Validate player access to room - must be before any early returns (Rules of Hooks)
+	useEffect(() => {
+		if (!roomQuery.data) return // Don't check until data is loaded
+
+		const room = roomQuery.data.room
+		const isPlayerInRoom = playerId ? room.players.some(p => p.id === playerId) : false
+
+		// Redirect if game has started and user is not a player
+		if (room.gameState === 'started' && !isPlayerInRoom) {
+			// Game is in progress and user is not authorized - redirect to join page
+			alert('This game has already started. You cannot join a game that is already in progress.')
+			window.location.href = '/game/join'
+		}
+	}, [roomQuery.data, playerId])
 
 	if (roomQuery.isLoading) {
 		return (
@@ -137,7 +155,12 @@ function RouteComponent() {
 				<div className="text-center mb-8">
 					<div className="flex items-center justify-center gap-3 mb-2">
 						<h1 className="text-3xl font-bold text-white">Game Room</h1>
-						{connectionState === 'connected' ? (
+						{/* Show polling status - green when data is fresh */}
+						{usePolling ? (
+							<div title="Auto-updating every 2s">
+								<Wifi className="w-5 h-5 text-green-400" />
+							</div>
+						) : connectionState === 'connected' ? (
 							<div title="Connected">
 								<Wifi className="w-5 h-5 text-green-400" />
 							</div>

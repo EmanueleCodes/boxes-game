@@ -62,6 +62,7 @@ const playerSchema = z.object({
     id: z.string(),
     name: z.string(),
     score: z.number(),
+    active: z.boolean(),
 })
 
 const roomSchema = z.object({
@@ -103,6 +104,7 @@ export const gameRouter = createTRPCRouter({
                 id: playerId,
                 name: input.playerName,
                 score: 0,
+                active: true,
             }
 
             // Add creator as first player in room
@@ -148,6 +150,7 @@ export const gameRouter = createTRPCRouter({
                 id: playerId,
                 name: input.playerName,
                 score: 0,
+                active: true,
             }
 
             // Add player to room

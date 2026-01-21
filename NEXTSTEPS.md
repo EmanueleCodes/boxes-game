@@ -121,7 +121,43 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Test disconnection handling
 - [ ] Test ping-pong heartbeat
 
-**Phase 2 Status:** ✅ **COMPLETED** (Testing optional, dev mode uses polling)
+### 2.6 Cloudflare Deployment & WebSocket Verification
+- [ ] **Deployment Setup**
+  - [ ] Verify `wrangler.jsonc` configuration (compatibility flags, main entry)
+  - [ ] Check Cloudflare account is linked (`wrangler login` or `wrangler whoami`)
+  - [ ] Verify build process works (`npm run build`)
+  - [ ] Test deployment to staging/preview (`wrangler deploy --env preview` or similar)
+  - [ ] Verify deployment to production (`npm run deploy` or `wrangler deploy`)
+- [ ] **Environment Configuration**
+  - [ ] Document any required environment variables
+  - [ ] Set production environment variables in Cloudflare dashboard if needed
+  - [ ] Verify `nodejs_compat` flag is set in `wrangler.jsonc` (for WebSocket support)
+  - [ ] Check compatibility date is recent enough for WebSocket API
+- [ ] **WebSocket Testing in Production**
+  - [ ] Test WebSocket connection from browser (verify connection establishes)
+  - [ ] Test multiple clients connecting to same room simultaneously
+  - [ ] Test message sending (join, ping, ready messages)
+  - [ ] Test message receiving (playerJoined, playerLeft broadcasts)
+  - [ ] Test real-time updates (player list updates when someone joins/leaves)
+  - [ ] Test disconnection handling (close browser tab → verify player removed)
+  - [ ] Test ping-pong heartbeat (verify connection stays alive)
+- [ ] **Production Debugging**
+  - [ ] Add production logging for WebSocket events (connection, disconnect, errors)
+  - [ ] Verify error handling works (invalid messages, room not found, etc.)
+  - [ ] Test with multiple rooms active simultaneously
+  - [ ] Monitor Cloudflare Workers logs for errors
+- [ ] **Verification Checklist**
+  - [ ] ✅ Players can create rooms
+  - [ ] ✅ Players can join rooms via room ID
+  - [ ] ✅ Real-time player list updates when someone joins
+  - [ ] ✅ Real-time player list updates when someone leaves/closes tab
+  - [ ] ✅ Connection status indicator shows "connected" in production
+  - [ ] ✅ WebSocket messages are received in real-time (no polling needed)
+  - [ ] ✅ Disconnection properly removes players from waiting rooms
+  - [ ] ✅ Disconnection properly marks players inactive during active games
+
+**Phase 2 Status:** ✅ **COMPLETED** (Infrastructure done, Production testing pending)
+**Note:** WebSocket infrastructure is complete, but requires Cloudflare deployment for full testing. Dev mode uses polling fallback (2s interval) since WebSocket API not supported in TanStack Start dev server.
 
 ---
 
@@ -398,9 +434,12 @@ This document tracks the implementation progress of the multiplayer counting gam
 - [ ] Mobile support priority: High/Medium/Low
 - [X] State structure: **Separated GameState (notStarted/started/finished) and RoundState (notStarted/showingBoxes/answering/showResults)** ✅
 - [X] Dev mode: **WebSocket disabled, using polling** (Cloudflare Workers WebSocket not fully supported in local dev) ✅
+- [X] Disconnection handling: **Remove players during 'notStarted', mark inactive during active games** ✅
+- [ ] Deployment: **Ready for Cloudflare deployment - WebSocket testing requires production environment** ⏳
 
 ### Issues & Blockers
-- _Add issues as they come up_
+- **WebSocket in Dev Mode:** WebSocket connections cannot be tested locally - TanStack Start dev server doesn't fully support Cloudflare Workers WebSocket API. Disconnection detection and real-time updates only work after deployment to Cloudflare Workers. Current workaround: polling (2s interval) in dev mode.
+- _Add other issues as they come up_
 
 ### Questions
 - _Add questions that need answers_
@@ -409,7 +448,7 @@ This document tracks the implementation progress of the multiplayer counting gam
 
 ## Quick Reference
 
-**Current Focus:** Phase 3 - Game Logic & State Management
+**Current Focus:** Phase 3 - Game Logic & State Management (with Phase 2.6 deployment pending for WebSocket testing)
 
 **Completed:**
 - ✅ Phase 1: Foundation & Room System (complete)

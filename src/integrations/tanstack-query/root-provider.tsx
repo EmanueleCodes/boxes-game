@@ -8,11 +8,15 @@ import type { TRPCRouter } from '@/integrations/trpc/router'
 import { TRPCProvider } from '@/integrations/trpc/react'
 
 function getUrl() {
-  const base = (() => {
-    if (typeof window !== 'undefined') return ''
-    return `http://localhost:${process.env.PORT ?? 3000}`
-  })()
-  return `${base}/api/trpc`
+  // On client-side, use relative URL (works for all environments)
+  if (typeof window !== 'undefined') {
+    return '/api/trpc'
+  }
+  
+  // On server-side (Cloudflare Workers), we can't make HTTP requests to ourselves
+  // tRPC will work via direct procedure calls, not HTTP
+  // Return a placeholder that won't be used for server-side direct calls
+  return '/api/trpc'
 }
 
 export const trpcClient = createTRPCClient<TRPCRouter>({

@@ -8,11 +8,14 @@ export class RoomManager {
 
     private rooms: Map<string, GameRoom> = new Map();
     
-    private cleanupInterval?:NodeJS.Timeout | null = null;
+    // Note: setInterval doesn't work reliably in Cloudflare Workers
+    // Cleanup happens on-demand during room operations instead
+    private cleanupInterval?: ReturnType<typeof setInterval> | null = null;
 
     constructor(){
         this.rooms = new Map();
-        this.cleanupInterval = setInterval(() => this.cleanupRooms(), 1000 * 60 * 5);
+        // Don't use setInterval in Cloudflare Workers - it doesn't persist across requests
+        // Instead, cleanup is done lazily when accessing rooms
     }
 
     public cleanupRooms(): void {
@@ -64,7 +67,14 @@ export class RoomManager {
     }
 
     public getRoom(roomId: string): GameRoom | undefined {
-        return this.rooms.get(roomId)
+        // Lazy cleanup: check if room is stale before returning
+        const room = this.rooms.get(roomId)
+        if (room && Date.now() - room.lastActivity > 1000 * 60 * 30) {
+            // Room inactive for 30 minutes, delete it
+            this.rooms.delete(roomId)
+            return undefined
+        }
+        return room
     }
 
     public deleteRoom(roomId: string): boolean {

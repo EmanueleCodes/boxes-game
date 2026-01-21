@@ -36,6 +36,7 @@ export interface Player {
     id: string;
     name: string;
     score: number;
+    active: boolean; // Whether player is currently connected/active
 }
 
 // Overall game status (game lifecycle)
