@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GameJoinRouteImport } from './routes/game/join'
 import { Route as GameCreateRouteImport } from './routes/game/create'
 import { Route as GameRoomIdRouteImport } from './routes/game/$roomId'
+import { Route as DevBoxesRouteImport } from './routes/dev/boxes'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api.trpc.$'
 import { Route as ApiGameWsRoomIdRouteImport } from './routes/api/game/ws.$roomId'
 
@@ -36,6 +37,11 @@ const GameRoomIdRoute = GameRoomIdRouteImport.update({
   path: '/game/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevBoxesRoute = DevBoxesRouteImport.update({
+  id: '/dev/boxes',
+  path: '/dev/boxes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
   id: '/api/trpc/$',
   path: '/api/trpc/$',
@@ -49,6 +55,7 @@ const ApiGameWsRoomIdRoute = ApiGameWsRoomIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dev/boxes': typeof DevBoxesRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/game/create': typeof GameCreateRoute
   '/game/join': typeof GameJoinRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dev/boxes': typeof DevBoxesRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/game/create': typeof GameCreateRoute
   '/game/join': typeof GameJoinRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dev/boxes': typeof DevBoxesRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/game/create': typeof GameCreateRoute
   '/game/join': typeof GameJoinRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dev/boxes'
     | '/game/$roomId'
     | '/game/create'
     | '/game/join'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dev/boxes'
     | '/game/$roomId'
     | '/game/create'
     | '/game/join'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/dev/boxes'
     | '/game/$roomId'
     | '/game/create'
     | '/game/join'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DevBoxesRoute: typeof DevBoxesRoute
   GameRoomIdRoute: typeof GameRoomIdRoute
   GameCreateRoute: typeof GameCreateRoute
   GameJoinRoute: typeof GameJoinRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/boxes': {
+      id: '/dev/boxes'
+      path: '/dev/boxes'
+      fullPath: '/dev/boxes'
+      preLoaderRoute: typeof DevBoxesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/trpc/$': {
       id: '/api/trpc/$'
       path: '/api/trpc/$'
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DevBoxesRoute: DevBoxesRoute,
   GameRoomIdRoute: GameRoomIdRoute,
   GameCreateRoute: GameCreateRoute,
   GameJoinRoute: GameJoinRoute,
